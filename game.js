@@ -130,6 +130,14 @@ class Player {
     }
 
     addScore(points) {
+        // Ensure points is a valid number
+        if (typeof points !== 'number' || isNaN(points)) {
+            points = 0;
+        }
+        // Ensure score is a valid number before adding
+        if (typeof this.score !== 'number' || isNaN(this.score)) {
+            this.score = 0;
+        }
         this.score += points;
     }
 
