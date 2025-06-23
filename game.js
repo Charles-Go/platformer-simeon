@@ -185,6 +185,31 @@ class Key {
     }
 }
 
+class Coin {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.radius = 10;
+        this.collected = false;
+    }
+
+    draw(ctx) {
+        if (this.collected) return;
+        ctx.fillStyle = '#FFD700';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    checkPlayerCollision(player) {
+        return !this.collected &&
+               player.x < this.x + this.radius &&
+               player.x + player.width > this.x - this.radius &&
+               player.y < this.y + this.radius &&
+               player.y + player.height > this.y - this.radius;
+    }
+}
+
 class RollingBall {
     constructor(x, y) {
         this.x = x;
@@ -609,6 +634,15 @@ class Level {
         this.nextLevelPos = nextLevelPos;
         this.key = new Key(keyPosition.x, keyPosition.y);
         this.key.visible = true;
+
+        // Coins for bonus points
+        this.coins = [];
+        for (let i = 0; i < 3; i++) {
+            const plat = this.platforms[Math.floor(Math.random() * this.platforms.length)];
+            const cx = plat.x + plat.width / 2;
+            const cy = plat.y - 20;
+            this.coins.push(new Coin(cx, cy));
+        }
         
         // Door image
         this.doorImage = new Image();
@@ -675,6 +709,9 @@ class Level {
         if (this.key.visible) {
             this.key.draw(ctx);
         }
+
+        // Draw coins
+        this.coins.forEach(coin => coin.draw(ctx));
 
         // Draw spinners
         this.spinners.forEach(spinner => spinner.draw(ctx));
@@ -767,6 +804,14 @@ class Level {
                 }
             });
         });
+
+        // Check coin collection
+        this.coins.forEach(coin => {
+            if (coin.checkPlayerCollision(player)) {
+                coin.collected = true;
+                player.addScore(20);
+            }
+        });
     }
 
     resetLevel() {
@@ -777,6 +822,8 @@ class Level {
         player.hasKey = false;
         // Reset balls
         this.balls = [];
+        // Reset coins
+        this.coins.forEach(c => c.collected = false);
         // Reset score for this level
         player.score = Math.max(0, player.score - 100); // Penalty for dying
     }
@@ -806,6 +853,31 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', (e) => {
     keys[e.key] = false;
 });
+
+// Touch controls
+if ('ontouchstart' in window) {
+    const mapping = {
+        leftBtn: 'ArrowLeft',
+        rightBtn: 'ArrowRight',
+        jumpBtn: 'ArrowUp',
+        fireBtn: 'f'
+    };
+    Object.keys(mapping).forEach(id => {
+        const key = mapping[id];
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            keys[key] = true;
+            if (key === 'ArrowUp') player.jump();
+            if (key === 'f') player.shoot();
+        });
+        btn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            keys[key] = false;
+        });
+    });
+}
 
 // Add after canvas initialization
 const platforms = [
