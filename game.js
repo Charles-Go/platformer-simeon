@@ -603,12 +603,18 @@ class Soldier {
 }
 
 class Level {
-    constructor(platforms, playerStart, nextLevelPos, keyPosition) {
+    constructor(platforms, playerStart, nextLevelPos, keyPosition,
+                pointsForKey = 100, pointsForCompletion = 200, timeBonus = 100) {
         this.platforms = platforms;
         this.playerStart = playerStart;
         this.nextLevelPos = nextLevelPos;
         this.key = new Key(keyPosition.x, keyPosition.y);
         this.key.visible = true;
+
+        // Scoring parameters
+        this.pointsForKey = pointsForKey;
+        this.pointsForCompletion = pointsForCompletion;
+        this.timeBonus = timeBonus;
         
         // Door image
         this.doorImage = new Image();
