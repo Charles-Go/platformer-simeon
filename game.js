@@ -628,7 +628,8 @@ class Soldier {
 }
 
 class Level {
-    constructor(platforms, playerStart, nextLevelPos, keyPosition) {
+    constructor(platforms, playerStart, nextLevelPos, keyPosition,
+                pointsForKey = 100, pointsForCompletion = 200, timeBonus = 100) {
         this.platforms = platforms;
         this.playerStart = playerStart;
         this.nextLevelPos = nextLevelPos;
@@ -649,6 +650,7 @@ class Level {
             const cy = plat.y - 20;
             this.coins.push(new Coin(cx, cy));
         }
+
         
         // Door image
         this.doorImage = new Image();
