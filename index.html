@@ -1,17 +1,52 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Custom Platformer</title>
     <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
         canvas {
             border: 1px solid black;
             display: block;
             margin: 0 auto;
+            width: 100vw;
+            height: 100vh;
+            touch-action: none;
+        }
+        .touch-controls {
+            position: fixed;
+            bottom: 10px;
+            left: 0;
+            right: 0;
+            display: none;
+            justify-content: center;
+            gap: 10px;
+        }
+        .touch-controls button {
+            width: 60px;
+            height: 60px;
+            font-size: 30px;
+            opacity: 0.7;
         }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="touchControls" class="touch-controls">
+        <button id="leftBtn">&#x25C0;</button>
+        <button id="rightBtn">&#x25B6;</button>
+        <button id="jumpBtn">&#x2B06;</button>
+        <button id="fireBtn">&#x1F525;</button>
+    </div>
     <script src="game.js"></script>
+    <script>
+        if ('ontouchstart' in window) {
+            document.getElementById('touchControls').style.display = 'flex';
+        }
+    </script>
 </body>
-</html> 
+</html>
