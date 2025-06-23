@@ -635,6 +635,12 @@ class Level {
         this.key = new Key(keyPosition.x, keyPosition.y);
         this.key.visible = true;
 
+        // Scoring parameters
+        this.pointsForKey = 100;
+        this.pointsForCompletion = 500;
+        this.timeBonus = 100;
+        this.pointsForCoin = 20;
+
         // Coins for bonus points
         this.coins = [];
         for (let i = 0; i < 3; i++) {
@@ -809,7 +815,7 @@ class Level {
         this.coins.forEach(coin => {
             if (coin.checkPlayerCollision(player)) {
                 coin.collected = true;
-                player.addScore(20);
+                player.addScore(this.pointsForCoin);
             }
         });
     }
@@ -832,6 +838,13 @@ class Level {
 // Get canvas and context
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
 
 // Create player
 const player = new Player(100, 100, 50, 50);
