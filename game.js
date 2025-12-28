@@ -844,9 +844,18 @@ const ctx = canvas.getContext('2d');
 function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+
+    // Regenerate victory screen stars on resize
+    if (typeof victoryScreen !== 'undefined') {
+        victoryScreen.regenerateStars();
+    }
 }
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
+// Also handle orientation change on mobile
+window.addEventListener('orientationchange', () => {
+    setTimeout(resizeCanvas, 100);
+});
 
 // Create player
 const player = new Player(100, 100, 50, 50);
@@ -869,29 +878,65 @@ document.addEventListener('keyup', (e) => {
     keys[e.key] = false;
 });
 
-// Touch controls
-if ('ontouchstart' in window) {
+// Touch controls with improved handling
+const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+if (isTouchDevice) {
     const mapping = {
         leftBtn: 'ArrowLeft',
         rightBtn: 'ArrowRight',
         jumpBtn: 'ArrowUp',
         fireBtn: 'f'
     };
+
     Object.keys(mapping).forEach(id => {
         const key = mapping[id];
         const btn = document.getElementById(id);
         if (!btn) return;
+
+        // Touch start
         btn.addEventListener('touchstart', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             keys[key] = true;
+            btn.classList.add('pressed');
             if (key === 'ArrowUp') player.jump();
             if (key === 'f') player.shoot();
-        });
+        }, { passive: false });
+
+        // Touch end
         btn.addEventListener('touchend', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             keys[key] = false;
-        });
+            btn.classList.remove('pressed');
+        }, { passive: false });
+
+        // Touch cancel (finger slides off button)
+        btn.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            keys[key] = false;
+            btn.classList.remove('pressed');
+        }, { passive: false });
+
+        // Touch leave (for when finger moves outside button)
+        btn.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            const rect = btn.getBoundingClientRect();
+            const isInside = touch.clientX >= rect.left &&
+                           touch.clientX <= rect.right &&
+                           touch.clientY >= rect.top &&
+                           touch.clientY <= rect.bottom;
+            if (!isInside) {
+                keys[key] = false;
+                btn.classList.remove('pressed');
+            }
+        }, { passive: false });
     });
+
+    // Prevent canvas touch from scrolling
+    canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+    canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 }
 
 // Add after canvas initialization
@@ -1010,6 +1055,11 @@ class VictoryScreen {
     constructor() {
         this.isVisible = false;
         this.stars = [];
+        this.regenerateStars();
+    }
+
+    regenerateStars() {
+        this.stars = [];
         for (let i = 0; i < 50; i++) {
             this.stars.push({
                 x: Math.random() * canvas.width,
@@ -1017,6 +1067,12 @@ class VictoryScreen {
                 size: Math.random() * 3
             });
         }
+    }
+
+    // Get responsive font size based on screen
+    getFontSize(baseSize) {
+        const scaleFactor = Math.min(canvas.width / 800, canvas.height / 600);
+        return Math.max(baseSize * scaleFactor, baseSize * 0.6);
     }
 
     draw(ctx, player) {
@@ -1034,26 +1090,31 @@ class VictoryScreen {
             ctx.fill();
         });
 
+        // Calculate responsive positions
+        const centerX = canvas.width / 2;
+        const startY = canvas.height * 0.15;
+        const lineSpacing = this.getFontSize(30);
+
         // Victory text
         ctx.fillStyle = '#FFD700';
-        ctx.font = 'bold 48px Arial';
+        ctx.font = `bold ${this.getFontSize(48)}px Arial`;
         ctx.textAlign = 'center';
-        ctx.fillText('Victoire !', canvas.width / 2, 150);
+        ctx.fillText('Victoire !', centerX, startY);
 
         // Score and time
-        ctx.font = '24px Arial';
+        ctx.font = `${this.getFontSize(24)}px Arial`;
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillText(`Score Final: ${player.score}`, canvas.width / 2, 220);
-        
+        ctx.fillText(`Score Final: ${player.score}`, centerX, startY + lineSpacing * 2);
+
         // Display times for each level
-        ctx.font = '20px Arial';
+        ctx.font = `${this.getFontSize(20)}px Arial`;
         player.levelTimes.forEach((time, index) => {
             const minutes = Math.floor(time / 60000);
             const seconds = ((time % 60000) / 1000).toFixed(1);
             ctx.fillText(
-                `Niveau ${index + 1}: ${minutes}m ${seconds}s`, 
-                canvas.width / 2, 
-                280 + (index * 30)
+                `Niveau ${index + 1}: ${minutes}m ${seconds}s`,
+                centerX,
+                startY + lineSpacing * (3.5 + index)
             );
         });
 
@@ -1062,33 +1123,57 @@ class VictoryScreen {
         const totalSeconds = ((player.totalTime % 60000) / 1000).toFixed(1);
         ctx.fillText(
             `Temps Total: ${totalMinutes}m ${totalSeconds}s`,
-            canvas.width / 2,
-            280 + (player.levelTimes.length * 30)
+            centerX,
+            startY + lineSpacing * (3.5 + player.levelTimes.length)
         );
 
-        // Play again prompt
-        ctx.font = '20px Arial';
+        // Play again prompt - different text for touch vs keyboard
+        ctx.font = `${this.getFontSize(20)}px Arial`;
         ctx.fillStyle = '#FFD700';
-        ctx.fillText('Appuyez sur ESPACE pour rejouer', canvas.width / 2, canvas.height - 100);
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const promptText = isTouchDevice ? 'Touchez l\'écran pour rejouer' : 'Appuyez sur ESPACE pour rejouer';
+        ctx.fillText(promptText, centerX, canvas.height - canvas.height * 0.1);
     }
 }
 
 // Create victory screen instance after canvas initialization
 const victoryScreen = new VictoryScreen();
 
+// Touch support for restarting game on victory screen
+canvas.addEventListener('touchstart', (e) => {
+    if (victoryScreen.isVisible) {
+        e.preventDefault();
+        restartGame();
+    }
+}, { passive: false });
+
+// Also support click for desktop
+canvas.addEventListener('click', (e) => {
+    if (victoryScreen.isVisible) {
+        restartGame();
+    }
+});
+
+// Function to restart the game
+function restartGame() {
+    victoryScreen.isVisible = false;
+    currentLevelIndex = 0;
+    player.score = 0;
+    player.totalTime = 0;
+    player.levelTimes = [];
+    player.resetPosition(levels[0].playerStart);
+    victoryScreen.regenerateStars();
+}
+
 // Replace the gameLoop function
 function gameLoop() {
     // Don't update game if victory screen is showing
     if (victoryScreen.isVisible) {
         victoryScreen.draw(ctx, player);
-        
+
+        // Keyboard restart (space key)
         if (keys[' ']) {
-            victoryScreen.isVisible = false;
-            currentLevelIndex = 0;
-            player.score = 0;
-            player.totalTime = 0;
-            player.levelTimes = [];
-            player.resetPosition(levels[0].playerStart);
+            restartGame();
         }
         requestAnimationFrame(gameLoop);
         return;
@@ -1161,22 +1246,30 @@ function gameLoop() {
         }
     }
 
+    // Responsive HUD font size
+    const hudFontSize = Math.max(16, Math.min(20, canvas.width / 40));
+    const hudPadding = Math.max(10, canvas.width / 50);
+
+    // Draw HUD background for better readability on mobile
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.fillRect(0, 0, canvas.width, hudFontSize + hudPadding * 2);
+
     // Draw score
-    ctx.font = '20px Arial';
+    ctx.font = `bold ${hudFontSize}px Arial`;
     ctx.fillStyle = '#000';
     ctx.textAlign = 'left';
-    ctx.fillText(`Score: ${player.score}`, 20, 30);
+    ctx.fillText(`Score: ${player.score}`, hudPadding, hudFontSize + hudPadding / 2);
 
     // Draw level number
     ctx.textAlign = 'center';
-    ctx.fillText(`Level ${currentLevelIndex + 1}`, canvas.width / 2, 30);
+    ctx.fillText(`Niveau ${currentLevelIndex + 1}`, canvas.width / 2, hudFontSize + hudPadding / 2);
 
     // Draw time
     const currentTime = Date.now() - player.levelStartTime;
     const minutes = Math.floor(currentTime / 60000);
     const seconds = ((currentTime % 60000) / 1000).toFixed(1);
     ctx.textAlign = 'right';
-    ctx.fillText(`Time: ${minutes}m ${seconds}s`, canvas.width - 20, 30);
+    ctx.fillText(`${minutes}:${seconds.padStart(4, '0')}`, canvas.width - hudPadding, hudFontSize + hudPadding / 2);
 
     requestAnimationFrame(gameLoop);
 }
